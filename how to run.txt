@@ -1,0 +1,18 @@
+init db:
+
+python database/db_init.py
+
+update db:
+
+python database/db_update.py
+
+TESTS:
+
+python -m pytest tests/
+
+
+SERVER:
+
+python -m uvicorn main:app --reload
+
+http://127.0.0.1:8000/swagger/

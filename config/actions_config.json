@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "name": "Заполнить профиль",
+    "achievement_affected": "Стажер",
+    "reward_points": 500
+  },
+  {
+    "id": 2,
+    "name": "Пройти обучение",
+    "achievement_affected": "Стажер",
+    "reward_points": 50
+  },
+  {
+    "id": 3,
+    "name": "Похвалить коллегу",
+    "achievement_affected": "Добряк",
+    "reward_points": 20
+  },
+  {
+    "id": 4,
+    "name": "Провести презентацию",
+    "achievement_affected": "Додик",
+    "reward_points": 99
+  },
+  {
+    "id": 5,
+    "name": "Получить благодарность от клиента",
+    "achievement_affected": "Работяга",
+    "reward_points": 60
+  }
+]

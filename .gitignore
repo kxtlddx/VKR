@@ -1,0 +1,4 @@
+__pycache*
+.pytest_*
+database/__py*
+tests/__py*

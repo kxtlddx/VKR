@@ -1,50 +1,68 @@
 import pytest
 from fastapi.testclient import TestClient
-from main import app, load_actions, get_action_by_name
-from database.create_db import create_db, DB_NAME, AchievementT
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-client = TestClient(app)
-engine = create_engine(f"sqlite:///{DB_NAME}")
-Session = sessionmaker(bind=engine)
+from pathlib import Path
+from database import create_db as db_mod
+from database.create_db import DB_NAME
 
 @pytest.fixture(autouse=True)
-def setup_db():
-    pass
-    # from database.create_db import create_db
-    # create_db()
+def reset_test_db(tmp_path, monkeypatch):
+    # Установим путь к временной БД
+    test_db = tmp_path / "test.db"
+    monkeypatch.setattr(db_mod, "DB_NAME", str(test_db))
+    from database.create_db import create_db
+    create_db()
 
-def test_action_execution():
-    action = load_actions()[0]
-    response = client.post("/achievements/v1/user_action/", json={
-        "user_id": 123,
-        "action_name": action["name"]
-    })
-    if response.status_code != 200:
-        print("\nRequest failed:")
-        print("Status code:", response.status_code)
-        print("Response JSON:", response.text)
-    assert response.status_code == 200
-    assert response.json()["status"] == "success"
+    # Перезагружаем main, чтобы он использовал новую БД
+    import importlib
+    import main
+    importlib.reload(main)
 
+    yield
 
-def test_user_achievements_returns_expected_fields():
-    client.post("/achievements/v1/user_action/", json={
+@pytest.fixture
+def client():
+    import main
+    return TestClient(main.app)
+
+def test_trigger_event_and_leaderboard(client):
+    # 1. Добавляем achievement type
+    ach_name = "KillGoblin"
+    ach_resp = client.post("/api/v1/achievements/", json={"name": ach_name})
+    assert ach_resp.status_code == 201
+    ach_id = ach_resp.json()["id"]
+
+    # 2. Добавляем event, который ссылается на achievement
+    event_data = {
+        "name": "GoblinSlain",
+        "achievement_affected_id": ach_id,
+        "reward_points": 150
+    }
+    ev_resp = client.post("/api/v1/events/", json=event_data)
+    assert ev_resp.status_code == 201
+    ev_id = ev_resp.json()["id"]
+
+    # 3. Тригерим событие
+    trig_resp = client.post("/api/v1/events/trigger", json={
         "user_id": 42,
-        "action_name": load_actions()[0]["name"]
+        "event_id": ev_id
     })
-    r = client.get("/achievements/v1/get_user_achievements/42")
-    data = r.json()
-    assert r.status_code == 200
-    assert "achievements" in data
-    assert all("name" in a and "level" in a for a in data["achievements"])
+    assert trig_resp.status_code == 200
+    data = trig_resp.json()["achievement"]
+    assert data["name"] == ach_name
+    assert data["score"] == 150
+    assert data["level"] == 1
 
-def test_leaderboard_includes_users():
-    client.post("/achievements/v1/user_action/", json={
-        "user_id": 1,
-        "action_name": load_actions()[0]["name"]
-    })
-    r = client.get("/achievements/v1/get_leaderboard")
-    assert r.status_code == 200
-    assert "leaderboard" in r.json()
+    # 4. Получаем user achievements
+    ua = client.get("/api/v1/leaderboard/user/42")
+    assert ua.status_code == 200
+    achievements = ua.json()["achievements"]
+    assert len(achievements) == 1
+    assert achievements[0]["name"] == ach_name
+
+    # 5. Проверка leaderboard
+    lb = client.get("/api/v1/leaderboard/")
+    assert lb.status_code == 200
+    board = lb.json()["leaderboard"]
+    assert any(user["user_id"] == 42 for user in board)

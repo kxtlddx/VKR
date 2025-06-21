@@ -31,7 +31,7 @@ class EventTriggerIn(BaseModel):
 def trigger_event(payload: EventTriggerIn):
     session = SessionLocal()
     # 1) fetch event
-    ev = session.query(Event).get(payload.event_id)
+    ev = session.get(Event, payload.event_id)
     if not ev:
         raise HTTPException(404, "Event not found")
 
@@ -71,7 +71,7 @@ def trigger_event(payload: EventTriggerIn):
     session.refresh(ach)
 
     # 4) build response exactly like “get user achievements” for this one
-    meta = session.query(AchievementT).get(ach.achievement_t_id)
+    meta = session.get(AchievementT, ach.achievement_t_id)
     level = get_achievement_level(ach.id, ach.score)
     return {
         "achievement": {
@@ -88,7 +88,7 @@ def trigger_event(payload: EventTriggerIn):
 @router.get("/{event_id}/tracker/{user_id}")
 def get_event_tracker(event_id: int, user_id: int):
     session = SessionLocal()
-    ev = session.query(Event).get(event_id)
+    ev = session.get(Event, event_id)
     if not ev:
         raise HTTPException(404, "Event not found")
 
@@ -111,7 +111,7 @@ def create_event(payload: EventIn):
     session = SessionLocal()
     if session.query(Event).filter_by(name=payload.name).first():
         raise HTTPException(400, "Event already exists")
-    ev = Event(**payload.dict())
+    ev = Event(**payload.model_dump())
     session.add(ev)
     session.commit()
     session.refresh(ev)

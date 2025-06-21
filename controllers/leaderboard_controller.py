@@ -28,7 +28,7 @@ def get_user_achievements(user_id: int):
     achs = session.query(Achievement).filter_by(user_id=user_id).all()
     result = []
     for a in achs:
-        meta = session.query(AchievementT).get(a.achievement_t_id)
+        meta = session.get(AchievementT, a.achievement_t_id)
         lvl = get_achievement_level(a.id, a.score)
         result.append({
             "achievement_id": a.id,
